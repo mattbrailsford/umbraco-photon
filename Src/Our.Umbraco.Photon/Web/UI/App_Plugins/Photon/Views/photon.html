@@ -1,0 +1,19 @@
+﻿<div id="photon-{{model.id}}" class="umb-editor umb-mediapicker" 
+	ng-controller="Our.Umbraco.PropertyEditors.PhotonController">
+
+	<span class="fileinput-button umb-upload-button-big"
+	    style="margin-bottom: 5px;"
+	    ng-hide="imageSrc">
+	    <i class="icon icon-page-up"></i>
+	    <p><localize key="media_clickToUpload">Click to upload</localize></p>
+	    <umb-single-file-upload></umb-single-file-upload>
+	</span>
+
+    <div ng-show="imageSrc">
+        <photon-image src="{{imageSrc}}" model="model"></photon-image>
+        <div>
+            <a href class="btn btn-link" ng-click="clear()"><i class="icon-delete red"></i> Remove file</a>
+        </div>
+    </div>
+
+</div>

@@ -1,0 +1,31 @@
+﻿<form name="photonForm" novalidate class="photon-dialog umb-panel" ng-controller="Our.Umbraco.Dialogs.PhotonMetaDataController">
+    
+    <div class="umb-panel-body no-header with-footer umb-scrollable" ng-switch="dialogMode">
+        <fieldset ng-repeat="tab in node.tabs">
+            <legend style="font-size: 18px;">{{tab.alias}}</legend>
+                
+            <umb-property 
+                property="property"
+                ng-repeat="property in tab.properties">
+                <umb-editor model="property"></umb-editor>
+            </umb-property>
+
+        </fieldset>
+    </div>
+
+    <div class="umb-panel-footer">
+        <div class="umb-el-wrap umb-panel-buttons">
+            <div class="btn-toolbar umb-btn-toolbar">
+                
+                <a href ng-click="close()" class="btn btn-link">
+	        		<localize key="general_cancel">Cancel</localize>
+				</a>
+
+				<button class="btn btn-primary" ng-click="save()">
+				    <localize key="buttons_save">Save</localize>
+				</button>
+
+            </div>
+        </div>
+    </div>
+</form>
