@@ -1,4 +1,31 @@
-.photon-image-wrapper 
+.photon-image-wrapper {
+    background-color: #f8f8f8;
+    padding: 10px;
+    display: inline-block;
+}
+
+.photon-image-wrapper > div:first-child {
+    display: inline-block;
+}
+
+.photon-image-tools {
+    display: inline-block;
+    vertical-align: top;
+    margin-left: 5px;
+}
+
+.photon-image-tool {
+    font-size: 16px;
+    color: #555;
+    cursor: pointer;
+}
+
+.photon-image-tool:hover {
+    color: #2e8aea;
+    text-decoration: none;
+}
+
+.photon-image-bounds 
 {
     position: relative;
     display: inline-block;
@@ -11,32 +38,66 @@
     user-select: none;
 }
 
-.ias_tag 
+.photon-tag 
 {
     position: absolute;
     display: block;
     border: solid 3px #2e8aea;
     cursor: pointer;
 
-    filter: alpha(opacity=50);
-    opacity: 0.5;
-
-    -webkit-transition: opacity 200ms ease-out;
-    -moz-transition: opacity 200ms ease-out;
-    -o-transition: opacity 200ms ease-out;
-    transition: opacity 200ms ease-out;
+    -webkit-transition: background-color 200ms ease-out;
+    -moz-transition: background-color 200ms ease-out;
+    -o-transition: background-color 200ms ease-out;
+    transition: background-color 200ms ease-out;
 
     -moz-box-sizing: border-box; 
     -webkit-box-sizing: border-box; 
     box-sizing: border-box;
 }
 
-.ias_tag:hover,
-.ias_tag.active
-{
-    filter: alpha(opacity=100);
-    opacity: 1;
+.photon-tag.active {
+    -webkit-transition: background-color 0ms ease-out;
+    -moz-transition: background-color 0ms ease-out;
+    -o-transition: background-color 0ms ease-out;
+    transition: background-color 0ms ease-out;
 }
+
+.photon-tag:hover
+{
+    background-color: rgba(46, 138, 234, .25);
+}
+
+.photon-tag.active:hover
+{
+    background-color: transparent;
+}
+
+.photon-tag-tools {
+    position: absolute;
+    position: absolute;
+    right: -30px;
+    top: -3px;
+    display: none;
+}
+
+.photon-tag:hover .photon-tag-tools,
+.photon-tag.active .photon-tag-tools
+{
+    display: block;
+}
+
+.photon-tag-tool {
+    display: block;
+    background-color: rgb(46, 138, 234);
+    color: white;
+    width: 28px;
+    height: 28px;
+    line-height: 28px;
+    text-align: center;
+    font-size: 16px;
+    cursor: pointer;
+}
+
 
 .photon-dialog .ng-invalid .control-group .control-label {
     color: #b94a48;

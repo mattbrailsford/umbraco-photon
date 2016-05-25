@@ -211,7 +211,7 @@ angular.module("umbraco.directives").directive('photonImage',
                     hide: true,
                     handles: false,
                     instance: true,
-                    parent: $(element).find(".photon-image-wrapper"),
+                    parent: $(element).find(".photon-image-bounds"),
                     onSelectStart: function (img) {
                         $scope.$apply(function () {
                             $scope.currentTag = null;
@@ -233,10 +233,12 @@ angular.module("umbraco.directives").directive('photonImage',
                         tag.height = pxToPerc(sel.height, imageHeight);
 
                         if ($scope.currentTag == null) {
-                            $scope.$apply(function () {
+                            $scope.$apply(function() {
                                 $scope.model.value.tags.push(tag);
                                 $scope.currentTag = tag;
                             });
+                        } else {
+                            $scope.$apply();
                         };
                     }
                 });
@@ -247,32 +249,34 @@ angular.module("umbraco.directives").directive('photonImage',
                 return isCurrentTag;
             }
 
+            $scope.deselectCurrentTag = function (e) {
+                $scope.currentTag = null;
+            }
+
             $scope.selectTag = function (tag, e) {
                 e.stopPropagation();
                 $scope.currentTag = tag;
             }
 
-            $scope.deselectTag = function (e) {
-                $scope.currentTag = null;
-            }
-
-            $scope.editCurrentTag = function () {
+            $scope.editTag = function (tag) {
                 metaDataDialogService.open({
                     dialogData: {
                         metaDataDocType: $scope.model.config.metaDataDocType,
-                        value: $scope.currentTag.metaData
+                        value: tag.metaData
                     },
                     callback: function (data) {
-                        $scope.currentTag.metaData = data.value;
+                        tag.metaData = data.value;
                     }
                 });
             }
 
-            $scope.deleteCurrentTag = function () {
+            $scope.deleteTag = function (tag) {
                 $scope.model.value.tags = $.grep($scope.model.value.tags, function (itm, idx) {
-                    return !$scope.isCurrentTag(itm);
+                    return tag.id !== itm.id;
                 });
-                $scope.currentTag = null;
+                if ($scope.isCurrentTag(tag)) {
+                    $scope.currentTag = null;
+                }
             }
 
             $scope.$watch('src', function (newValue, oldValue) {
@@ -307,12 +311,12 @@ angular.module("umbraco.directives").directive('photonImage',
             });
 
             $scope.$on("formSubmitting", function () {
-                $scope.deselectTag();
+                $scope.deselectCurrentTag();
             });
 
             $scope.$on('$destroy', function () {
                 ias.setOptions({ remove: true });
-                $scope.deselectTag();
+                $scope.deselectCurrentTag();
             });
         }
 
@@ -320,13 +324,15 @@ angular.module("umbraco.directives").directive('photonImage',
             restrict: "E",
             replace: true,
             template: "<div>" +
-                "<div class='photon-image-wrapper' style=\"background-color:{{model.config.backgroundColor}};\">" +
-                "<a class='ias_tag' ng-repeat=\"tag in model.value.tags\" ng-class=\"{active:tag.id==currentTag.id}\" ng-mousedown=\"selectTag(tag, $event);\" style=\"width:{{tag.width}}%;height:{{tag.height}}%;left:{{tag.x}}%;top:{{tag.y}}%;\"></a>" +
-                "<img class='photon-image' src='{{src}}' width='{{model.config.imageWidth}}' ng-mousedown=\"deselectTag($event);\" />" +
-                "</div><br />" +
-                "<a class=\"btn btn-link\" ng-disabled=\"!currentTag\" ng-click=\"editCurrentTag()\"><i class=\"icon-edit\"></i> Edit Tag Meta Data</a>" +
-                "<a class=\"btn btn-link\" ng-disabled=\"!currentTag\" ng-click=\"deleteCurrentTag()\"><i class=\"icon-delete red\"></i> Delete Tag</a>" +
-                "<hr style=\"margin: 10px 0;\" />" +
+                    "<div class='photon-image-bounds' style=\"background-color:{{model.config.backgroundColor}};\">" +
+                        "<div class='photon-tag' ng-repeat=\"tag in model.value.tags\" ng-class=\"{active:tag.id==currentTag.id}\" ng-mousedown=\"selectTag(tag, $event);\" style=\"width:{{tag.width}}%;height:{{tag.height}}%;left:{{tag.x}}%;top:{{tag.y}}%;\">" +
+                            "<div class='photon-tag-tools'>" +
+                                "<span class=\"photon-tag-tool\" ng-click=\"editTag(tag)\"><i class=\"icon-edit\"> </i></span>" +
+                                "<span class=\"photon-tag-tool\" ng-click=\"deleteTag(tag)\"><i class=\"icon-trash\"> </i></span>" +
+                            "</div>" +
+                        "</div>" +
+                        "<img class='photon-image' src='{{src}}' width='{{model.config.imageWidth}}' ng-mousedown=\"deselectCurrentTag($event);\"  />" +
+                    "</div>" +
                 "</div>",
             scope: {
                 model: '=',

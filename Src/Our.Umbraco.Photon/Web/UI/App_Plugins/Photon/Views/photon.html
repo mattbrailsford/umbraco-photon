@@ -9,10 +9,10 @@
         </li> 
     </ul>
 
-    <div ng-if="!showAdd()">
+    <div class="photon-image-wrapper" ng-if="!showAdd()">
         <photon-image src="{{imageSrc}}" model="model"></photon-image>
-        <div>
-            <a href class="btn btn-link" ng-click="clear()"><i class="icon-delete red"></i> Remove file</a>
+        <div class="photon-image-tools">
+            <a href class="photon-image-tool" ng-click="clear()"><i class="icon-trash"></i></a>
         </div>
     </div>
 
