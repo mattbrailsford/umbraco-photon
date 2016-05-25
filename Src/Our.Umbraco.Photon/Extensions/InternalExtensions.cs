@@ -6,6 +6,17 @@ namespace Our.Umbraco.Photon.Extensions
 {
 	internal static class InternalExtensions
 	{
+		public static T GetProperty<T>(this object obj, string propertyName)
+		{
+			var objType = obj.GetType();
+			var accessorProp = objType.FindProperty(typeof(T), propertyName,
+				BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+
+			return accessorProp == null
+				? default(T)
+				: (T)accessorProp.GetValue(obj);
+		}
+
 		public static T ExecuteSingletonMethod<T>(this Type objType, string singletonAccessor,
 			string methodName, params object[] args)
 		{

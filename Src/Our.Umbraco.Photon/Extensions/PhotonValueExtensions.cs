@@ -12,7 +12,7 @@ namespace Our.Umbraco.Photon.Extensions
 	{
 		public static bool HasFile(this PhotonValue value)
 		{
-			return value != null && !value.Src.IsNullOrWhiteSpace();
+			return value != null && value.ImageId > 0;
 		}
 	}
 }

@@ -3,66 +3,93 @@
 \* ===================================== */
 
 angular.module('umbraco').controller("Our.Umbraco.PropertyEditors.PhotonController",
-    function($rootScope, $routeParams, $scope, $log, mediaHelper, cropperHelper, $timeout,
-        editorState, umbRequestHelper, fileManager) {
+    function ($rootScope, $routeParams, $scope, entityResource) {
 
         var config = angular.copy($scope.model.config);
-        var defaultValue = { src: "", tags:[] };
 
-        if ($scope.model.value)
-        {
-            $scope.imageSrc = $scope.model.value.src;
+        function setupViewModel() {
+            console.log("setupViewModel");
+            console.log($scope.model.value);
+
+            $scope.imageSrc = undefined;
+            $scope.imageId = 0;
+            $scope.tags = [];
+
+            if ($scope.model.value && $scope.model.value.imageId > 0) {
+                entityResource.getById($scope.model.value.imageId, "Media").then(function (media) {
+
+                    // Extract media url
+                    var src = media.hasOwnProperty("metaData")
+                        ? media.metaData["umbracoFile"] : "";
+
+                    // Check for image cropper
+                    if (typeof src === 'object' && src.hasOwnProperty("PropertyEditorAlias") && src["PropertyEditorAlias"] == "Umbraco.ImageCropper") {
+                        src = src.Value.src;
+                    }
+
+                    // Src is some other object so set to empty string
+                    if (typeof src === 'object') {
+                        src = "";
+                    }
+
+                    // Update scope
+                    $scope.imageSrc = src;
+                    $scope.imageId = media.id;
+                    $scope.tags = $scope.model.value.tags;
+                    $scope.sync();
+                });
+            }
         }
+
+        setupViewModel();
+
+        $scope.showAdd = function () {
+            return !$scope.imageSrc;
+        };
+
+        $scope.add = function () {
+
+            $scope.mediaPickerOverlay = {
+                view: "mediapicker",
+                title: "Select media",
+                multiPicker: false,
+                show: true,
+                submit: function (model) {
+
+                    if (model.selectedImages.length > 0 && model.selectedImages[0].hasOwnProperty("image")) {
+                        $scope.imageSrc = model.selectedImages[0].image;
+                        $scope.imageId = model.selectedImages[0].id;
+                    }
+                    
+                    $scope.sync();
+
+                    $scope.mediaPickerOverlay.show = false;
+                    $scope.mediaPickerOverlay = null;
+
+                }
+            };
+
+        };
 
         $scope.clear = function () {
             if (confirm("You sure?")) {
-                //clear current uploaded files
-                fileManager.setFiles($scope.model.alias, []);
-
-                //clear the ui
                 $scope.imageSrc = undefined;
-                if ($scope.model.value) {
-                    delete $scope.model.value;
-                }
+                $scope.imageId = 0;
+                $scope.tags = [];
+                $scope.sync();
             }
         };
 
-        $scope.done = function () {
-            $scope.currentTag = undefined;
+        $scope.sync = function () {
+            $scope.model.value = $scope.imageId > 0
+                ? { imageId: $scope.imageId, tags: $scope.tags }
+                : undefined;
         };
-
-        // on image selected, update the img tag
-        $scope.$on("filesSelected", function (ev, args) {
-
-            $scope.model.value = $.extend({}, defaultValue);
-
-            if (args.files && args.files[0]) {
-                fileManager.setFiles($scope.model.alias, args.files);
-
-                var reader = new FileReader();
-                reader.onload = function (e) {
-                    $scope.$apply(function () {
-                        $scope.imageSrc = e.target.result;
-                    });
-                };
-
-                reader.readAsDataURL(args.files[0]);
-            }
-        });
 
         //here we declare a special method which will be called whenever the value has changed from the server
         $scope.model.onValueChanged = function (newVal, oldVal) {
-            //clear current uploaded files
-            fileManager.setFiles($scope.model.alias, []);
+            setupViewModel();
         };
-
-        var unsubscribe = $scope.$on("formSubmitting", function () {
-            $scope.done();
-        });
-
-        $scope.$on('$destroy', function () {
-            unsubscribe();
-        });
     });
 
 angular.module("umbraco").controller("Our.Umbraco.Dialogs.PhotonMetaDataController",
@@ -77,12 +104,22 @@ angular.module("umbraco").controller("Our.Umbraco.Dialogs.PhotonMetaDataControll
 
             $scope.save = function () {
 
+                // DO NOT REMOVE
+                // Fixes issue with links not updating tiny mce value.
+                // We need to force an execCommand to run to make it
+                // call the handler that updates the model value.
+                if ("tinyMCE" in window) {
+                    for (var edId in tinyMCE.editors) {
+                        tinyMCE.editors[edId].execCommand('mceRepaint');
+                    }
+                }
+
                 if (!$scope.photonForm.$valid)
                     return;
 
                 // Copy property values to scope model value
                 if ($scope.node) {
-                    var value = { };
+                    var value = {};
                     for (var t = 0; t < $scope.node.tabs.length; t++) {
                         var tab = $scope.node.tabs[t];
                         for (var p = 0; p < tab.properties.length; p++) {
@@ -101,8 +138,7 @@ angular.module("umbraco").controller("Our.Umbraco.Dialogs.PhotonMetaDataControll
             };
 
             function loadNode() {
-                contentResource.getScaffold(-20, $scope.dialogData.metaDataDocType).then(function (data)
-                {
+                contentResource.getScaffold(-20, $scope.dialogData.metaDataDocType).then(function (data) {
                     // Remove the last tab
                     data.tabs.pop();
 
@@ -141,157 +177,165 @@ angular.module("umbraco.directives").directive('photonImage',
     "Our.Umbraco.Services.photonMetaDataDialogService",
     function (metaDataDialogService) {
 
-    var origImageWidth, origImageHeight, imageWidth, imageHeight, ias;
-    
-    var updateImageDimensions = function(url, imgWidth) {
-        var tmpImg = new Image();
-        tmpImg.src = url;
-        $(tmpImg).one('load', function ()
-        {
-            origImageWidth = tmpImg.width;
-            origImageHeight = tmpImg.height;
+        var origImageWidth, origImageHeight, imageWidth, imageHeight, ias;
 
-            imageWidth = imgWidth;
-            imageHeight = Math.round((imageWidth / origImageWidth) * origImageHeight);
+        var updateImageDimensions = function (url, imgWidth) {
+            var tmpImg = new Image();
+            tmpImg.src = url;
+            $(tmpImg).one('load', function () {
+                origImageWidth = tmpImg.width;
+                origImageHeight = tmpImg.height;
 
-            delete tmpImg;
-        });
-    }
+                imageWidth = imgWidth;
+                imageHeight = Math.round((imageWidth / origImageWidth) * origImageHeight);
 
-    var percToPx = function(val, maxVal) {
-        return (maxVal / 100) * val;
-    };
-
-    var pxToPerc = function (val, maxVal) {
-        return (100 / maxVal) * val;
-    };
-
-    var link = function ($scope, element, attrs, ctrl) {
-
-        $scope.model.value.tags = $scope.model.value.tags || [];
-        $scope.currentTag = null;
-
-        var initImgAreaSelect = function() {
-            ias = $(element).find(".photon-image").imgAreaSelect({
-                hide: true,
-                handles: false,
-                instance: true,
-                parent: $(element).find(".photon-image-wrapper"),
-                onSelectStart: function (img) {
-                    $scope.$apply(function () {
-                        $scope.currentTag = null;
-                    });
-                    ias.setOptions({ show: true });
-                    ias.update();
-                },
-                onSelectEnd: function (img, sel) {
-
-                    var tooSmall = sel.width == 0 || sel.height == 0;
-                    if ($scope.currentTag == null && tooSmall)
-                        return;
-
-                    var tag = $scope.currentTag || { id: guid() };
-
-                    tag.x = pxToPerc(sel.x1, imageWidth);
-                    tag.y = pxToPerc(sel.y1, imageHeight);
-                    tag.width = pxToPerc(sel.width, imageWidth);
-                    tag.height = pxToPerc(sel.height, imageHeight);
-                    tag.metaData = {};
-
-                    if ($scope.currentTag == null) {
-                        $scope.$apply(function () {
-                            $scope.model.value.tags.push(tag);
-                            $scope.currentTag = tag;
-                        });
-                    };
-                }
+                delete tmpImg;
             });
         }
 
-        $scope.isCurrentTag = function (tag) {
-            var isCurrentTag = $scope.currentTag != null && tag.id == $scope.currentTag.id;
-            return isCurrentTag;
-        }
+        var percToPx = function (val, maxVal) {
+            return (maxVal / 100) * val;
+        };
 
-        $scope.selectTag = function(tag, el) {
-            $scope.currentTag = tag;
-        }
+        var pxToPerc = function (val, maxVal) {
+            return (100 / maxVal) * val;
+        };
 
-        $scope.editCurrentTag = function () {
-            metaDataDialogService.open({
-                dialogData: {
-                    metaDataDocType: $scope.model.config.metaDataDocType,
-                    value: $scope.currentTag.metaData
-                },
-                callback: function (data) {
-                    $scope.currentTag.metaData = data.value;
-                }
-            });
-        }
+        var link = function ($scope, element, attrs, ctrl) {
 
-        $scope.deleteCurrentTag = function () {
-            $scope.model.value.tags = $.grep($scope.model.value.tags, function(itm, idx) {
-                return !$scope.isCurrentTag(itm);
-            });
+            $scope.model.value.tags = $scope.model.value.tags || [];
             $scope.currentTag = null;
+
+            var initImgAreaSelect = function () {
+                ias = $(element).find(".photon-image").imgAreaSelect({
+                    hide: true,
+                    handles: false,
+                    instance: true,
+                    parent: $(element).find(".photon-image-wrapper"),
+                    onSelectStart: function (img) {
+                        $scope.$apply(function () {
+                            $scope.currentTag = null;
+                        });
+                        ias.setOptions({ show: true });
+                        ias.update();
+                    },
+                    onSelectEnd: function (img, sel) {
+
+                        var tooSmall = sel.width == 0 || sel.height == 0;
+                        if ($scope.currentTag == null && tooSmall)
+                            return;
+
+                        var tag = $scope.currentTag || { id: guid(), metaData: {} };
+
+                        tag.x = pxToPerc(sel.x1, imageWidth);
+                        tag.y = pxToPerc(sel.y1, imageHeight);
+                        tag.width = pxToPerc(sel.width, imageWidth);
+                        tag.height = pxToPerc(sel.height, imageHeight);
+
+                        if ($scope.currentTag == null) {
+                            $scope.$apply(function () {
+                                $scope.model.value.tags.push(tag);
+                                $scope.currentTag = tag;
+                            });
+                        };
+                    }
+                });
+            }
+
+            $scope.isCurrentTag = function (tag) {
+                var isCurrentTag = $scope.currentTag != null && tag.id == $scope.currentTag.id;
+                return isCurrentTag;
+            }
+
+            $scope.selectTag = function (tag, e) {
+                e.stopPropagation();
+                $scope.currentTag = tag;
+            }
+
+            $scope.deselectTag = function (e) {
+                $scope.currentTag = null;
+            }
+
+            $scope.editCurrentTag = function () {
+                metaDataDialogService.open({
+                    dialogData: {
+                        metaDataDocType: $scope.model.config.metaDataDocType,
+                        value: $scope.currentTag.metaData
+                    },
+                    callback: function (data) {
+                        $scope.currentTag.metaData = data.value;
+                    }
+                });
+            }
+
+            $scope.deleteCurrentTag = function () {
+                $scope.model.value.tags = $.grep($scope.model.value.tags, function (itm, idx) {
+                    return !$scope.isCurrentTag(itm);
+                });
+                $scope.currentTag = null;
+            }
+
+            $scope.$watch('src', function (newValue, oldValue) {
+                if (newValue != oldValue) {
+                    $scope.model.value.tags = [];
+                    if (ias != undefined) {
+                        ias.update({ remove: true });
+                    }
+                }
+                if (newValue) {
+                    updateImageDimensions(newValue, $scope.model.config.imageWidth);
+                    initImgAreaSelect();
+                }
+            });
+
+            $scope.$watch('currentTag', function (newValue, oldValue) {
+                if (newValue != null) {
+                    if (newValue != oldValue) {
+                        ias.setSelection(percToPx(newValue.x, imageWidth),
+                            percToPx(newValue.y, imageHeight),
+                            percToPx(newValue.x + newValue.width, imageWidth),
+                            percToPx(newValue.y + newValue.height, imageHeight));
+                        ias.setOptions({ show: true });
+                        ias.update();
+                    }
+                } else {
+                    if (newValue != oldValue) {
+                        ias.setOptions({ hide: true });
+                        ias.update();
+                    }
+                }
+            });
+
+            $scope.$on("formSubmitting", function () {
+                $scope.deselectTag();
+            });
+
+            $scope.$on('$destroy', function () {
+                ias.setOptions({ remove: true });
+                $scope.deselectTag();
+            });
         }
 
-        $scope.$watch('src', function (newValue, oldValue) {
-            if (newValue != oldValue) {
-                $scope.model.value.tags = [];
-                if (ias != undefined) {
-                    ias.update({ remove: true });
-                }
-            }
-            if (newValue) {
-                updateImageDimensions(newValue, $scope.model.config.imageWidth);
-                initImgAreaSelect();
-            }
-        });
+        return {
+            restrict: "E",
+            replace: true,
+            template: "<div>" +
+                "<div class='photon-image-wrapper' style=\"background-color:{{model.config.backgroundColor}};\">" +
+                "<a class='ias_tag' ng-repeat=\"tag in model.value.tags\" ng-class=\"{active:tag.id==currentTag.id}\" ng-mousedown=\"selectTag(tag, $event);\" style=\"width:{{tag.width}}%;height:{{tag.height}}%;left:{{tag.x}}%;top:{{tag.y}}%;\"></a>" +
+                "<img class='photon-image' src='{{src}}' width='{{model.config.imageWidth}}' ng-mousedown=\"deselectTag($event);\" />" +
+                "</div><br />" +
+                "<a class=\"btn btn-link\" ng-disabled=\"!currentTag\" ng-click=\"editCurrentTag()\"><i class=\"icon-edit\"></i> Edit Tag Meta Data</a>" +
+                "<a class=\"btn btn-link\" ng-disabled=\"!currentTag\" ng-click=\"deleteCurrentTag()\"><i class=\"icon-delete red\"></i> Delete Tag</a>" +
+                "<hr style=\"margin: 10px 0;\" />" +
+                "</div>",
+            scope: {
+                model: '=',
+                src: '@'
+            },
+            link: link
+        };
 
-        $scope.$watch('currentTag', function (newValue, oldValue) {
-            if (newValue != null) {
-                if (newValue != oldValue) {
-                    ias.setSelection(percToPx(newValue.x, imageWidth),
-                        percToPx(newValue.y, imageHeight),
-                        percToPx(newValue.x + newValue.width, imageWidth),
-                        percToPx(newValue.y + newValue.height, imageHeight));
-                    ias.setOptions({ show: true });
-                    ias.update();
-                }
-            } else {
-                if (newValue != oldValue) {
-                    ias.setOptions({ hide: true });
-                    ias.update();
-                }
-            }
-        });
-
-        $scope.$on('$destroy', function () {
-            ias.setOptions({ remove: true });
-        });
-    }
-
-    return {
-        restrict: "E",
-        replace: true, 
-        template: "<div>" +
-            "<div class='photon-image-wrapper' style=\"background-color:{{model.config.backgroundColor}};\">" +
-            "<a class='ias_tag' ng-repeat=\"tag in model.value.tags\" ng-class=\"{active:tag.id==currentTag.id}\" ng-mousedown=\"selectTag(tag);\" style=\"width:{{tag.width}}%;height:{{tag.height}}%;left:{{tag.x}}%;top:{{tag.y}}%;\"></a>" +
-            "<img class='photon-image' src='{{src}}' width='{{model.config.imageWidth}}' />" +
-            "</div><br />"+
-            "<a class=\"btn btn-link\" ng-disabled=\"!currentTag\" ng-click=\"editCurrentTag()\"><i class=\"icon-edit\"></i> Edit Tag Meta Data</a>"+
-            "<a class=\"btn btn-link\" ng-disabled=\"!currentTag\" ng-click=\"deleteCurrentTag()\"><i class=\"icon-delete red\"></i> Delete Tag</a>" +
-            "<hr style=\"margin: 10px 0;\" />"+
-            "</div>",
-        scope: {
-            model: '=',
-            src: '@'
-        },
-        link: link
-    };
-
-}]);
+    }]);
 
 /* ===================================== *\
     Services
@@ -348,8 +392,7 @@ angular.module('umbraco.services').factory('Our.Umbraco.Services.photonMetaDataD
     Helpers
 \* ===================================== */
 
-function guid()
-{
+function guid() {
     function _p8(s) {
         var p = (Math.random().toString(16) + "000000000").substr(2, 8);
         return s ? "-" + p.substr(0, 4) + "-" + p.substr(4, 4) : p;

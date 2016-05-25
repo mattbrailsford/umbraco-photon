@@ -213,9 +213,9 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>IF NOT "$(SolutionDir)" == "*Undefined*" (
-xcopy /s /y "$(TargetPath)" "C:\Users\Matt\Work\TheOutfield\CommonGood\Specialized\YourRideYourRules\Src\Specialized.YourRideYourRules\bin"
-xcopy /s /y "$(TargetDir)$(ProjectName).pdb" "C:\Users\Matt\Work\TheOutfield\CommonGood\Specialized\YourRideYourRules\Src\Specialized.YourRideYourRules\bin"
-xcopy /s /y "$(ProjectDir)Web\UI\*.*" "C:\Users\Matt\Work\TheOutfield\CommonGood\Specialized\YourRideYourRules\Src\Specialized.YourRideYourRules"
+xcopy /s /y "$(TargetPath)" "C:\Users\Matt\Work\Sandbox\Umbraco\UmbracoCms.7.4.2\bin"
+xcopy /s /y "$(TargetDir)$(ProjectName).pdb" "C:\Users\Matt\Work\Sandbox\Umbraco\UmbracoCms.7.4.2\bin"
+xcopy /s /y "$(ProjectDir)Web\UI\*.*" "C:\Users\Matt\Work\Sandbox\Umbraco\UmbracoCms.7.4.2"
 )</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

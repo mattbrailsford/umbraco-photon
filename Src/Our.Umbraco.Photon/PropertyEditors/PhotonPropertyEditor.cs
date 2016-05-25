@@ -1,25 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using ClientDependency.Core;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Our.Umbraco.Photon.Extensions;
 using Our.Umbraco.Photon.Helpers;
 using Our.Umbraco.Photon.Models;
 using Umbraco.Core;
-using Umbraco.Core.Configuration;
-using Umbraco.Core.IO;
-using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Editors;
 using Umbraco.Core.PropertyEditors;
 using Umbraco.Core.Services;
-using Umbraco.Web.Models.ContentEditing;
 using Umbraco.Web.PropertyEditors;
 
 namespace Our.Umbraco.Photon.PropertyEditors
@@ -255,103 +245,31 @@ namespace Our.Umbraco.Photon.PropertyEditors
 			public override object ConvertEditorToDb(ContentPropertyData editorValue, 
 				object currentValue)
 			{
-				var oldValue = new PhotonValue();
 				var newValue = new PhotonValue();
-
-				// Get the old src path
-				if (currentValue != null && !string.IsNullOrEmpty(currentValue.ToString()))
-				{
-					oldValue = PhotonValue.Parse(currentValue.ToString());
-				}
 
 				//get the new src path
 				if (editorValue.Value != null)
 				{
 					newValue = PhotonValue.Parse(editorValue.Value.ToString());
-				}
 
-				//handle storing / deleteing the media items
-				ConvertDbToEditor_HandleMedia(editorValue, oldValue, newValue);
+                    // Loop tags and covert meta data
+                    if (newValue != null && newValue.Tags != null && newValue.Tags.Count > 0)
+                    {
+                        // Get the meta data doc type
+                        var metaDataDocTypeAlias = PhotonHelper.GetMetaDataDocType(editorValue.PreValues);
+                        var metaDataDocType = ApplicationContext.Current.Services.ContentTypeService.GetContentType(metaDataDocTypeAlias);
 
-				// Loop tags and covert meta data
-				if (newValue != null && newValue.Tags != null && newValue.Tags.Count > 0)
-				{
-					// Get the meta data doc type
-					var metaDataDocTypeAlias = PhotonHelper.GetMetaDataDocType(editorValue.PreValues);
-					var metaDataDocType = ApplicationContext.Current.Services.ContentTypeService.GetContentType(metaDataDocTypeAlias);
-				
-					foreach (var tag in newValue.Tags)
-					{
-						tag.RawMetaData = ConvertEditorToDb_DocType(metaDataDocType, tag.RawMetaData);
-					}
-				}
+                        foreach (var tag in newValue.Tags)
+                        {
+                            tag.RawMetaData = ConvertEditorToDb_DocType(metaDataDocType, tag.RawMetaData);
+                        }
+                    }
 
-				// Return json
-				return JsonConvert.SerializeObject(newValue);
-			}
+                    // Return json
+                    return JsonConvert.SerializeObject(newValue);
+                }
 
-			protected void ConvertDbToEditor_HandleMedia(ContentPropertyData editorValue, 
-				PhotonValue oldValue, PhotonValue newValue)
-			{
-				// Mostly copied from the ImageCropper prevalue editor in core.
-				// We couldn't inherit from it though as it's currently internal.
-				// The MediaSubfolderCounter is accessed via reflection as this is
-				// also current internal but we really need to use it.
-
-				var fs = FileSystemProviderManager.Current.GetFileSystemProvider<MediaFileSystem>();
-
-				//if we have an existing file, delete it
-				if (oldValue.HasFile())
-				{
-					if (oldValue.Src != newValue.Src)
-					{
-						fs.DeleteFile(fs.GetRelativePath(oldValue.Src), true);
-					}
-				}
-				else
-				{
-					oldValue.Src = "";
-				}
-
-				//save new file
-				if (editorValue.AdditionalData.ContainsKey("files"))
-				{
-					var files = editorValue.AdditionalData["files"] as IEnumerable<ContentItemFile>;
-					if (files != null && files.Any())
-					{
-						var file = files.First();
-
-						if (UploadFileTypeHelper.ValidateFileExtension(file.FileName))
-						{
-							//create name and folder number
-							var name = file.FileName.Substring(file.FileName.LastIndexOf(IOHelper.DirSepChar) + 1, file.FileName.Length - file.FileName.LastIndexOf(IOHelper.DirSepChar) - 1).ToLower().ToSafeFileName();
-
-							//try to reuse the folder number from the current file
-							var subfolder = UmbracoConfig.For.UmbracoSettings().Content.UploadAllowDirectories
-								? oldValue.Src.Replace(fs.GetUrl("/"), "").Split('/')[0]
-								: oldValue.Src.Substring(oldValue.Src.LastIndexOf("/", StringComparison.Ordinal) + 1).Split('-')[0];
-
-							//if we dont find one, create a new one
-							int subfolderId;
-							var mediaSubfolderCounterType = Type.GetType("Umbraco.Core.Media.MediaSubfolderCounter, Umbraco.Core");
-							var numberedFolder = int.TryParse(subfolder, out subfolderId)
-								? subfolderId.ToInvariantString()
-								: mediaSubfolderCounterType.ExecuteSingletonMethod<long>("Current", "Increment").ToString(CultureInfo.InvariantCulture);
-
-							//set a file name or full path
-							var fileName = UmbracoConfig.For.UmbracoSettings().Content.UploadAllowDirectories
-								? Path.Combine(numberedFolder, name)
-								: numberedFolder + "-" + name;
-
-							//save file and assign to the new value object
-							using (var fileStream = System.IO.File.OpenRead(file.TempFilePath))
-							{
-								var umbracoFile = UmbracoMediaFile.Save(fileStream, fileName);
-								newValue.Src = umbracoFile.Url;
-							}
-						}
-					}
-				}
+			    return null;
 			}
 
 			protected object ConvertEditorToDb_DocType(IContentType contentType, object value)
@@ -401,6 +319,7 @@ namespace Our.Umbraco.Photon.PropertyEditors
 			#endregion
 		}
 
-		#endregion	
+		#endregion
+
 	}
 }
