@@ -10,7 +10,7 @@
     </ul>
 
     <div class="photon-image-wrapper" ng-if="!showAdd()">
-        <photon-image src="{{imageSrc}}" model="model"></photon-image>
+        <photon-image src="{{tmpModel.imageSrc}}" model="tmpModel" config="model.config"></photon-image>
         <div class="photon-image-tools">
             <a href class="photon-image-tool" ng-click="clear()"><i class="icon-trash"></i></a>
         </div>

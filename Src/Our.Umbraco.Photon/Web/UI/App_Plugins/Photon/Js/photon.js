@@ -5,15 +5,15 @@
 angular.module('umbraco').controller("Our.Umbraco.PropertyEditors.PhotonController",
     function ($rootScope, $routeParams, $scope, entityResource) {
 
-        var config = angular.copy($scope.model.config);
+        //var config = angular.copy($scope.model.config);
+        var defaultValue = { imageId: 0, imageSrc: "", tags: [] };
 
         function setupViewModel() {
-            console.log("setupViewModel");
+
             console.log($scope.model.value);
 
-            $scope.imageSrc = undefined;
-            $scope.imageId = 0;
-            $scope.tags = [];
+            $scope.tmpModel = $scope.model.value || angular.copy(defaultValue);
+            $scope.tmpModel.imageSrc = "";
 
             if ($scope.model.value && $scope.model.value.imageId > 0) {
                 entityResource.getById($scope.model.value.imageId, "Media").then(function (media) {
@@ -33,10 +33,7 @@ angular.module('umbraco').controller("Our.Umbraco.PropertyEditors.PhotonControll
                     }
 
                     // Update scope
-                    $scope.imageSrc = src;
-                    $scope.imageId = media.id;
-                    $scope.tags = $scope.model.value.tags;
-                    $scope.sync();
+                    $scope.tmpModel.imageSrc = src;
                 });
             }
         }
@@ -44,7 +41,7 @@ angular.module('umbraco').controller("Our.Umbraco.PropertyEditors.PhotonControll
         setupViewModel();
 
         $scope.showAdd = function () {
-            return !$scope.imageSrc;
+            return !$scope.tmpModel.imageSrc;
         };
 
         $scope.add = function () {
@@ -57,12 +54,10 @@ angular.module('umbraco').controller("Our.Umbraco.PropertyEditors.PhotonControll
                 submit: function (model) {
 
                     if (model.selectedImages.length > 0 && model.selectedImages[0].hasOwnProperty("image")) {
-                        $scope.imageSrc = model.selectedImages[0].image;
-                        $scope.imageId = model.selectedImages[0].id;
+                        $scope.tmpModel.imageId = model.selectedImages[0].id;
+                        $scope.tmpModel.imageSrc = model.selectedImages[0].image;
                     }
                     
-                    $scope.sync();
-
                     $scope.mediaPickerOverlay.show = false;
                     $scope.mediaPickerOverlay = null;
 
@@ -73,18 +68,15 @@ angular.module('umbraco').controller("Our.Umbraco.PropertyEditors.PhotonControll
 
         $scope.clear = function () {
             if (confirm("You sure?")) {
-                $scope.imageSrc = undefined;
-                $scope.imageId = 0;
-                $scope.tags = [];
-                $scope.sync();
+                $scope.tmpModel = angular.copy(defaultValue);
             }
         };
 
-        $scope.sync = function () {
-            $scope.model.value = $scope.imageId > 0
-                ? { imageId: $scope.imageId, tags: $scope.tags }
+        $scope.$on("formSubmitting", function () {
+            $scope.model.value = $scope.tmpModel.imageId > 0
+                ? { imageId: $scope.tmpModel.imageId, tags: $scope.tmpModel.tags }
                 : undefined;
-        };
+        });
 
         //here we declare a special method which will be called whenever the value has changed from the server
         $scope.model.onValueChanged = function (newVal, oldVal) {
@@ -203,7 +195,7 @@ angular.module("umbraco.directives").directive('photonImage',
 
         var link = function ($scope, element, attrs, ctrl) {
 
-            $scope.model.value.tags = $scope.model.value.tags || [];
+            $scope.model.tags = $scope.model.tags || [];
             $scope.currentTag = null;
 
             var initImgAreaSelect = function () {
@@ -234,7 +226,7 @@ angular.module("umbraco.directives").directive('photonImage',
 
                         if ($scope.currentTag == null) {
                             $scope.$apply(function() {
-                                $scope.model.value.tags.push(tag);
+                                $scope.model.tags.push(tag);
                                 $scope.currentTag = tag;
                             });
                         } else {
@@ -261,7 +253,7 @@ angular.module("umbraco.directives").directive('photonImage',
             $scope.editTag = function (tag) {
                 metaDataDialogService.open({
                     dialogData: {
-                        metaDataDocType: $scope.model.config.metaDataDocType,
+                        metaDataDocType: $scope.config.metaDataDocType,
                         value: tag.metaData
                     },
                     callback: function (data) {
@@ -271,7 +263,7 @@ angular.module("umbraco.directives").directive('photonImage',
             }
 
             $scope.deleteTag = function (tag) {
-                $scope.model.value.tags = $.grep($scope.model.value.tags, function (itm, idx) {
+                $scope.model.tags = $.grep($scope.model.tags, function (itm, idx) {
                     return tag.id !== itm.id;
                 });
                 if ($scope.isCurrentTag(tag)) {
@@ -281,13 +273,13 @@ angular.module("umbraco.directives").directive('photonImage',
 
             $scope.$watch('src', function (newValue, oldValue) {
                 if (newValue != oldValue) {
-                    $scope.model.value.tags = [];
+                    $scope.model.tags = [];
                     if (ias != undefined) {
                         ias.update({ remove: true });
                     }
                 }
                 if (newValue) {
-                    updateImageDimensions(newValue, $scope.model.config.imageWidth);
+                    updateImageDimensions(newValue, $scope.config.imageWidth);
                     initImgAreaSelect();
                 }
             });
@@ -324,17 +316,18 @@ angular.module("umbraco.directives").directive('photonImage',
             restrict: "E",
             replace: true,
             template: "<div>" +
-                    "<div class='photon-image-bounds' style=\"background-color:{{model.config.backgroundColor}};\">" +
-                        "<div class='photon-tag' ng-repeat=\"tag in model.value.tags\" ng-class=\"{active:tag.id==currentTag.id}\" ng-mousedown=\"selectTag(tag, $event);\" style=\"width:{{tag.width}}%;height:{{tag.height}}%;left:{{tag.x}}%;top:{{tag.y}}%;\">" +
+                    "<div class='photon-image-bounds' style=\"background-color:{{config.backgroundColor}};\">" +
+                        "<div class='photon-tag' ng-repeat=\"tag in model.tags\" ng-class=\"{active:tag.id==currentTag.id}\" ng-mousedown=\"selectTag(tag, $event);\" style=\"width:{{tag.width}}%;height:{{tag.height}}%;left:{{tag.x}}%;top:{{tag.y}}%;\">" +
                             "<div class='photon-tag-tools'>" +
                                 "<span class=\"photon-tag-tool\" ng-click=\"editTag(tag)\"><i class=\"icon-edit\"> </i></span>" +
                                 "<span class=\"photon-tag-tool\" ng-click=\"deleteTag(tag)\"><i class=\"icon-trash\"> </i></span>" +
                             "</div>" +
                         "</div>" +
-                        "<img class='photon-image' src='{{src}}' width='{{model.config.imageWidth}}' ng-mousedown=\"deselectCurrentTag($event);\"  />" +
+                        "<img class='photon-image' src='{{src}}' width='{{config.imageWidth}}' ng-mousedown=\"deselectCurrentTag($event);\"  />" +
                     "</div>" +
                 "</div>",
             scope: {
+                config: '=',
                 model: '=',
                 src: '@'
             },
