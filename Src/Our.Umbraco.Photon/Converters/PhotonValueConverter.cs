@@ -38,20 +38,26 @@ namespace Our.Umbraco.Photon.Converters
 				{
 					var value = JsonConvert.DeserializeObject<PhotonValue>(source.ToString());
 
-					if (value.Tags != null && value.Tags.Count > 0)
-					{
-						// Get the meta data doc type
-						var metaDataDocTypeAlias = PhotonHelper.GetMetaDataDocType(propertyType.DataTypeId);
-						var metaDataDocType = PublishedContentType.Get(PublishedItemType.Content, metaDataDocTypeAlias);
+				    if (value.ImageId > 0)
+				    {
+                        // Get the image content
+				        value.Image = UmbracoContext.Current.MediaCache.GetById(value.ImageId);
 
-						// Loop tags and covert meta data
-						foreach (var tag in value.Tags)
-						{
-							tag.MetaData = ConvertDataToSource_DocType(propertyType, metaDataDocType, tag.RawMetaData, preview);
-						}
-					}
+				        if (value.Tags != null && value.Tags.Count > 0)
+				        {
+				            // Get the meta data doc type
+				            var metaDataDocTypeAlias = PhotonHelper.GetMetaDataDocType(propertyType.DataTypeId);
+				            var metaDataDocType = PublishedContentType.Get(PublishedItemType.Content, metaDataDocTypeAlias);
 
-					return value;
+				            // Loop tags and covert meta data
+				            foreach (var tag in value.Tags)
+				            {
+				                tag.MetaData = ConvertDataToSource_DocType(propertyType, metaDataDocType, tag.RawMetaData, preview);
+				            }
+				        }
+				    }
+
+				    return value;
 				}
 			}
 			catch (Exception e)

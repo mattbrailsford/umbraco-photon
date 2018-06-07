@@ -20,7 +20,7 @@
 	****************************************
   -->
   <PropertyGroup>
-	<PackageVersion>0.1</PackageVersion>
+	<PackageVersion>0.2</PackageVersion>
 	<ProjectName>Our.Umbraco.Photon</ProjectName>
 	<BuildConfig>Release</BuildConfig>
   </PropertyGroup>

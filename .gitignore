@@ -28,6 +28,7 @@ _ReSharper.*
 *.sbr
 *.scc
 *.csproj.user
+.vs/
 obj/
 bin/
 [Dd]ebug*/

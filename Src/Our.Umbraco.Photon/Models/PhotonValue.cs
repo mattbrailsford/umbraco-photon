@@ -2,15 +2,20 @@
 using System.Collections.ObjectModel;
 using Newtonsoft.Json;
 using Umbraco.Core.Logging;
+using Umbraco.Core.Models;
 
 namespace Our.Umbraco.Photon.Models
 {
 	public class PhotonValue
 	{
-		[JsonProperty("src")]
-		public string Src { get; set; }
+		[JsonProperty("imageId")]
+		public int ImageId { get; set; }
 
-		[JsonProperty("tags")]
+        // Only ever used in Razor views, so can be considered readonly
+        [JsonIgnore]
+        public IPublishedContent Image { get; internal set; }
+
+        [JsonProperty("tags")]
 		public ReadOnlyCollection<PhotonTag> Tags { get; set; }
 
 		internal static PhotonValue Parse(string json)
