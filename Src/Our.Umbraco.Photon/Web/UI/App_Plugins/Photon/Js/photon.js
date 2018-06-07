@@ -27,6 +27,11 @@ angular.module('umbraco').controller("Our.Umbraco.PropertyEditors.PhotonControll
                         src = src.Value.src;
                     }
 
+                    // Check for Upload Field
+                    if (typeof src === 'object' && src.hasOwnProperty("PropertyEditorAlias") && src["PropertyEditorAlias"] == "Umbraco.UploadField") {
+                        src = src.Value;
+                    }
+                    
                     // Src is some other object so set to empty string
                     if (typeof src === 'object') {
                         src = "";
